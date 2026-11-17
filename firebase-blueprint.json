@@ -1,0 +1,255 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Parent or expecting parent account profile, stage, health conditions, goals, and preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 160 },
+        "parentStage": { "type": "string", "enum": ["expecting", "new_parent"] },
+        "babyName": { "type": "string", "maxLength": 80 },
+        "dueOrBirthDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "currentWeek": { "type": "number" },
+        "healthConditions": { "type": "array" },
+        "language": { "type": "string", "enum": ["en", "es", "hi", "fr"] },
+        "darkMode": { "type": "boolean" },
+        "biometricEnabled": { "type": "boolean" },
+        "dailyWaterGoalMl": { "type": "number" },
+        "targetWeightKg": { "type": "number" },
+        "dailySleepGoalHours": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "parentStage", "babyName", "dueOrBirthDate", "currentWeek", "healthConditions", "language", "darkMode", "biometricEnabled", "dailyWaterGoalMl", "targetWeightKg", "dailySleepGoalHours", "createdAt", "updatedAt"]
+    },
+    "HealthLog": {
+      "title": "HealthLog",
+      "description": "Daily health tracking entry for tablets, food, water, sleep, feeding, or activity.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "logType": { "type": "string", "enum": ["tablet", "food", "water", "sleep", "activity", "feeding"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "valueNum": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 24 },
+        "notes": { "type": "string", "maxLength": 400 },
+        "loggedDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "loggedTime": { "type": "string", "pattern": "^\\d{2}:\\d{2}$", "maxLength": 5 },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "logType", "title", "valueNum", "unit", "notes", "loggedDate", "loggedTime", "completed", "createdAt", "updatedAt"]
+    },
+    "GrowthEntry": {
+      "title": "GrowthEntry",
+      "description": "Baby or maternal weekly growth and anthropometric tracking entry.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "weekNumber": { "type": "number" },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "weightKg": { "type": "number" },
+        "heightCm": { "type": "number" },
+        "headCm": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "weekNumber", "date", "weightKg", "heightCm", "headCm", "notes", "createdAt", "updatedAt"]
+    },
+    "Milestone": {
+      "title": "Milestone",
+      "description": "Checkup (5w, 10w, 20w), vaccination, clinical appointment, or developmental milestone.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "category": { "type": "string", "enum": ["checkup_5w", "checkup_10w", "checkup_20w", "vaccine", "appointment", "developmental"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "weekTarget": { "type": "number" },
+        "scheduledDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "status": { "type": "string", "enum": ["upcoming", "completed", "overdue"] },
+        "doctorName": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "reminderEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "category", "title", "weekTarget", "scheduledDate", "status", "doctorName", "notes", "reminderEnabled", "createdAt", "updatedAt"]
+    },
+    "MemoryPhoto": {
+      "title": "MemoryPhoto",
+      "description": "Cloud-synced photo memory documenting pregnancy and baby growth moments.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "caption": { "type": "string", "maxLength": 500 },
+        "milestoneWeek": { "type": "number" },
+        "category": { "type": "string", "enum": ["milestone", "ultrasound", "firsts", "wellness"] },
+        "dateTaken": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "imageData": { "type": "string", "minLength": 5, "maxLength": 350000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "caption", "milestoneWeek", "category", "dateTaken", "imageData", "createdAt", "updatedAt"]
+    },
+    "MedicalRecord": {
+      "title": "MedicalRecord",
+      "description": "Insurance policy, lab report, medication history, or immunization document.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recordType": { "type": "string", "enum": ["insurance", "lab_report", "medication", "immunization"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "providerOrInsurer": { "type": "string", "maxLength": 120 },
+        "dateIssued": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "summary": { "type": "string", "maxLength": 800 },
+        "policyOrRefNumber": { "type": "string", "maxLength": 80 },
+        "attachmentPreview": { "type": "string", "maxLength": 350000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "recordType", "title", "providerOrInsurer", "dateIssued", "summary", "policyOrRefNumber", "attachmentPreview", "createdAt", "updatedAt"]
+    },
+    "ServiceBooking": {
+      "title": "ServiceBooking",
+      "description": "Blood sample collection, ambulance, medical cab ride, or clinic visit request.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "serviceType": { "type": "string", "enum": ["blood_collection", "ambulance", "cab_ride", "clinic_visit"] },
+        "providerName": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "address": { "type": "string", "maxLength": 240 },
+        "scheduledFor": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["requested", "confirmed", "completed", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "serviceType", "providerName", "address", "scheduledFor", "status", "notes", "createdAt", "updatedAt"]
+    },
+    "ConsultationThread": {
+      "title": "ConsultationThread",
+      "description": "Direct messaging thread with an OB/GYN or Pediatric specialist.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "doctorName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "specialty": { "type": "string", "maxLength": 80 },
+        "clinicName": { "type": "string", "maxLength": 120 },
+        "lastMessage": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "doctorName", "specialty", "clinicName", "lastMessage", "status", "createdAt", "updatedAt"]
+    },
+    "ConsultationMessage": {
+      "title": "ConsultationMessage",
+      "description": "Individual secure message inside a doctor consultation thread.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderRole": { "type": "string", "enum": ["parent", "doctor"] },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "urgent": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "senderRole", "senderName", "body", "urgent", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Public parent community discussion post (no PII stored).",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorHandle": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "topic": { "type": "string", "enum": ["pregnancy", "newborn", "milestones", "nutrition", "sleep"] },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "body": { "type": "string", "minLength": 3, "maxLength": 2000 },
+        "isPublic": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "authorHandle", "topic", "title", "body", "isPublic", "createdAt", "updatedAt"]
+    },
+    "CommunityReply": {
+      "title": "CommunityReply",
+      "description": "Reply on a parent community post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorHandle": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorUid", "authorHandle", "body", "createdAt"]
+    },
+    "CommunityLike": {
+      "title": "CommunityLike",
+      "description": "Per-user endorsement marker on a community post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private parent profile and health preferences."
+    },
+    "/users/{userId}/healthLogs/{logId}": {
+      "schema": { "$ref": "#/entities/HealthLog" },
+      "description": "Daily tablets, food, water, sleep, feeding, and activity logs."
+    },
+    "/users/{userId}/growthEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/GrowthEntry" },
+      "description": "Weekly weight, height, and head circumference entries."
+    },
+    "/users/{userId}/milestones/{milestoneId}": {
+      "schema": { "$ref": "#/entities/Milestone" },
+      "description": "5w/10w/20w checkups, vaccines, appointments, and developmental milestones."
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": { "$ref": "#/entities/MemoryPhoto" },
+      "description": "Cloud photo gallery entries."
+    },
+    "/users/{userId}/medicalRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/MedicalRecord" },
+      "description": "Insurance documents, lab reports, and medication history."
+    },
+    "/users/{userId}/serviceBookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/ServiceBooking" },
+      "description": "Blood collection, medical transport, and clinic booking records."
+    },
+    "/users/{userId}/consultations/{threadId}": {
+      "schema": { "$ref": "#/entities/ConsultationThread" },
+      "description": "Direct doctor messaging thread headers."
+    },
+    "/users/{userId}/consultations/{threadId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ConsultationMessage" },
+      "description": "Direct doctor consultation messages."
+    },
+    "/communityPosts/{postId}": {
+      "schema": { "$ref": "#/entities/CommunityPost" },
+      "description": "Shared parent community discussions without PII."
+    },
+    "/communityPosts/{postId}/replies/{replyId}": {
+      "schema": { "$ref": "#/entities/CommunityReply" },
+      "description": "Replies to a community post."
+    },
+    "/communityPosts/{postId}/likes/{userId}": {
+      "schema": { "$ref": "#/entities/CommunityLike" },
+      "description": "Unique user upvotes on a community post."
+    }
+  }
+}

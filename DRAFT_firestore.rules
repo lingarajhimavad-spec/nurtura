@@ -1,0 +1,514 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Global Hardened Primitives
+    // -------------------------------------------------------------------------
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function parentUserExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isValidDateStr(s) {
+      return s is string && s.size() == 10 && s.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidTimeStr(s) {
+      return s is string && s.size() == 5 && s.matches('^\\d{2}:\\d{2}$');
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints (Anti-Update-Gap)
+    // -------------------------------------------------------------------------
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'email', 'parentStage', 'babyName',
+          'dueOrBirthDate', 'currentWeek', 'healthConditions', 'language',
+          'darkMode', 'biometricEnabled', 'dailyWaterGoalMl', 'targetWeightKg',
+          'dailySleepGoalHours', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'parentStage', 'babyName',
+          'dueOrBirthDate', 'currentWeek', 'healthConditions', 'language',
+          'darkMode', 'biometricEnabled', 'dailyWaterGoalMl', 'targetWeightKg',
+          'dailySleepGoalHours', 'createdAt', 'updatedAt'
+        ])
+        && data.uid == request.auth.uid
+        && data.uid == userId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.parentStage in ['expecting', 'new_parent']
+        && data.babyName is string && data.babyName.size() <= 80
+        && isValidDateStr(data.dueOrBirthDate)
+        && data.currentWeek is number && data.currentWeek >= 0 && data.currentWeek <= 260
+        && data.healthConditions is list && data.healthConditions.size() <= 10
+        && (data.healthConditions.size() == 0 || (data.healthConditions[0] is string && data.healthConditions[0].size() <= 64))
+        && data.language in ['en', 'es', 'hi', 'fr']
+        && data.darkMode is bool
+        && data.biometricEnabled is bool
+        && data.dailyWaterGoalMl is number && data.dailyWaterGoalMl >= 200 && data.dailyWaterGoalMl <= 6000
+        && data.targetWeightKg is number && data.targetWeightKg >= 1 && data.targetWeightKg <= 150
+        && data.dailySleepGoalHours is number && data.dailySleepGoalHours >= 4 && data.dailySleepGoalHours <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHealthLog(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'logType', 'title', 'valueNum', 'unit', 'notes',
+          'loggedDate', 'loggedTime', 'completed', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'logType', 'title', 'valueNum', 'unit', 'notes',
+          'loggedDate', 'loggedTime', 'completed', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.logType in ['tablet', 'food', 'water', 'sleep', 'activity', 'feeding']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.valueNum is number && data.valueNum >= 0 && data.valueNum <= 10000
+        && data.unit is string && data.unit.size() <= 24
+        && data.notes is string && data.notes.size() <= 400
+        && isValidDateStr(data.loggedDate)
+        && isValidTimeStr(data.loggedTime)
+        && data.completed is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGrowthEntry(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'weekNumber', 'date', 'weightKg', 'heightCm', 'headCm',
+          'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'weekNumber', 'date', 'weightKg', 'heightCm', 'headCm',
+          'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.weekNumber is number && data.weekNumber >= 0 && data.weekNumber <= 260
+        && isValidDateStr(data.date)
+        && data.weightKg is number && data.weightKg >= 0 && data.weightKg <= 150
+        && data.heightCm is number && data.heightCm >= 0 && data.heightCm <= 200
+        && data.headCm is number && data.headCm >= 0 && data.headCm <= 80
+        && data.notes is string && data.notes.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMilestone(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'category', 'title', 'weekTarget', 'scheduledDate',
+          'status', 'doctorName', 'notes', 'reminderEnabled', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'category', 'title', 'weekTarget', 'scheduledDate',
+          'status', 'doctorName', 'notes', 'reminderEnabled', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.category in ['checkup_5w', 'checkup_10w', 'checkup_20w', 'vaccine', 'appointment', 'developmental']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.weekTarget is number && data.weekTarget >= 0 && data.weekTarget <= 260
+        && isValidDateStr(data.scheduledDate)
+        && data.status in ['upcoming', 'completed', 'overdue']
+        && data.doctorName is string && data.doctorName.size() <= 100
+        && data.notes is string && data.notes.size() <= 500
+        && data.reminderEnabled is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMemoryPhoto(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'title', 'caption', 'milestoneWeek', 'category',
+          'dateTaken', 'imageData', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'title', 'caption', 'milestoneWeek', 'category',
+          'dateTaken', 'imageData', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.caption is string && data.caption.size() <= 500
+        && data.milestoneWeek is number && data.milestoneWeek >= 0 && data.milestoneWeek <= 260
+        && data.category in ['milestone', 'ultrasound', 'firsts', 'wellness']
+        && isValidDateStr(data.dateTaken)
+        && data.imageData is string && data.imageData.size() >= 5 && data.imageData.size() <= 350000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMedicalRecord(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'recordType', 'title', 'providerOrInsurer', 'dateIssued',
+          'summary', 'policyOrRefNumber', 'attachmentPreview', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'recordType', 'title', 'providerOrInsurer', 'dateIssued',
+          'summary', 'policyOrRefNumber', 'attachmentPreview', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.recordType in ['insurance', 'lab_report', 'medication', 'immunization']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.providerOrInsurer is string && data.providerOrInsurer.size() <= 120
+        && isValidDateStr(data.dateIssued)
+        && data.summary is string && data.summary.size() <= 800
+        && data.policyOrRefNumber is string && data.policyOrRefNumber.size() <= 80
+        && data.attachmentPreview is string && data.attachmentPreview.size() <= 350000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidServiceBooking(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'serviceType', 'providerName', 'address', 'scheduledFor',
+          'status', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'serviceType', 'providerName', 'address', 'scheduledFor',
+          'status', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.serviceType in ['blood_collection', 'ambulance', 'cab_ride', 'clinic_visit']
+        && data.providerName is string && data.providerName.size() >= 1 && data.providerName.size() <= 140
+        && data.address is string && data.address.size() <= 240
+        && data.scheduledFor is string && data.scheduledFor.size() <= 40
+        && data.status in ['requested', 'confirmed', 'completed', 'cancelled']
+        && data.notes is string && data.notes.size() <= 400
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConsultationThread(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'doctorName', 'specialty', 'clinicName', 'lastMessage',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'doctorName', 'specialty', 'clinicName', 'lastMessage',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.doctorName is string && data.doctorName.size() >= 1 && data.doctorName.size() <= 100
+        && data.specialty is string && data.specialty.size() <= 80
+        && data.clinicName is string && data.clinicName.size() <= 120
+        && data.lastMessage is string && data.lastMessage.size() <= 500
+        && data.status in ['active', 'resolved']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConsultationMessage(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'senderRole', 'senderName', 'body', 'urgent', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'senderRole', 'senderName', 'body', 'urgent', 'createdAt'
+        ])
+        && data.ownerId == request.auth.uid
+        && data.ownerId == userId
+        && data.senderRole in ['parent', 'doctor']
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100
+        && data.body is string && data.body.size() >= 1 && data.body.size() <= 1500
+        && data.urgent is bool
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCommunityPost(data) {
+      return data.keys().hasAll([
+          'authorUid', 'authorHandle', 'topic', 'title', 'body', 'isPublic', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'authorUid', 'authorHandle', 'topic', 'title', 'body', 'isPublic', 'createdAt', 'updatedAt'
+        ])
+        && data.authorUid == request.auth.uid
+        && data.authorHandle is string && data.authorHandle.size() >= 1 && data.authorHandle.size() <= 60
+        && data.topic in ['pregnancy', 'newborn', 'milestones', 'nutrition', 'sleep']
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 140
+        && data.body is string && data.body.size() >= 3 && data.body.size() <= 2000
+        && data.isPublic == true
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCommunityReply(data, postId) {
+      return data.keys().hasAll(['postId', 'authorUid', 'authorHandle', 'body', 'createdAt'])
+        && data.keys().hasOnly(['postId', 'authorUid', 'authorHandle', 'body', 'createdAt'])
+        && data.postId == postId
+        && data.authorUid == request.auth.uid
+        && data.authorHandle is string && data.authorHandle.size() >= 1 && data.authorHandle.size() <= 60
+        && data.body is string && data.body.size() >= 1 && data.body.size() <= 1200
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCommunityLike(data, postId, likeUserId) {
+      return data.keys().hasAll(['postId', 'userId', 'createdAt'])
+        && data.keys().hasOnly(['postId', 'userId', 'createdAt'])
+        && data.postId == postId
+        && data.userId == request.auth.uid
+        && data.userId == likeUserId
+        && data.createdAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // User Profile & Private Maternal/Baby Subcollections
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'parentStage', 'babyName', 'dueOrBirthDate',
+          'currentWeek', 'healthConditions', 'language', 'darkMode',
+          'biometricEnabled', 'dailyWaterGoalMl', 'targetWeightKg',
+          'dailySleepGoalHours', 'updatedAt'
+        ]);
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      match /healthLogs/{logId} {
+        allow get: if isValidId(userId) && isValidId(logId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(logId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidHealthLog(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(logId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidHealthLog(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'valueNum', 'unit', 'notes', 'loggedTime', 'completed', 'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(logId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /growthEntries/{entryId} {
+        allow get: if isValidId(userId) && isValidId(entryId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(entryId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidGrowthEntry(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(entryId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidGrowthEntry(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'weekNumber', 'date', 'weightKg', 'heightCm', 'headCm', 'notes', 'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(entryId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /milestones/{milestoneId} {
+        allow get: if isValidId(userId) && isValidId(milestoneId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(milestoneId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMilestone(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(milestoneId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMilestone(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'scheduledDate', 'status', 'doctorName', 'notes', 'reminderEnabled', 'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(milestoneId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /memories/{memoryId} {
+        allow get: if isValidId(userId) && isValidId(memoryId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(memoryId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMemoryPhoto(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(memoryId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMemoryPhoto(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'caption', 'milestoneWeek', 'category', 'dateTaken', 'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(memoryId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /medicalRecords/{recordId} {
+        allow get: if isValidId(userId) && isValidId(recordId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(recordId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMedicalRecord(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(recordId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidMedicalRecord(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'providerOrInsurer', 'dateIssued', 'summary', 'policyOrRefNumber', 'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(recordId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /serviceBookings/{bookingId} {
+        allow get: if isValidId(userId) && isValidId(bookingId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(bookingId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidServiceBooking(incoming(), userId)
+          && incoming().status == 'requested'
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(bookingId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidServiceBooking(incoming(), userId)
+          && !(existing().status in ['completed', 'cancelled'])
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'scheduledFor', 'notes', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(bookingId) && isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /consultations/{threadId} {
+        allow get: if isValidId(userId) && isValidId(threadId) && isOwner(userId) && parentUserExists(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(threadId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidConsultationThread(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(threadId) && isOwner(userId)
+          && parentUserExists(userId)
+          && isValidConsultationThread(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'status', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(threadId) && isOwner(userId) && parentUserExists(userId);
+
+        match /messages/{messageId} {
+          allow get: if isValidId(userId) && isValidId(threadId) && isValidId(messageId)
+            && isOwner(userId)
+            && exists(/databases/$(database)/documents/users/$(userId)/consultations/$(threadId));
+          allow list: if isValidId(userId) && isValidId(threadId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+          allow create: if isValidId(userId) && isValidId(threadId) && isValidId(messageId)
+            && isOwner(userId)
+            && exists(/databases/$(database)/documents/users/$(userId)/consultations/$(threadId))
+            && isValidConsultationMessage(incoming(), userId)
+            && incoming().createdAt == request.time;
+          allow update: if false;
+          allow delete: if false;
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Parent Community Forum (Non-PII Public Discussions for Verified Users)
+    // -------------------------------------------------------------------------
+    match /communityPosts/{postId} {
+      allow get: if isValidId(postId) && isVerifiedUser();
+      allow list: if isVerifiedUser() && resource.data.isPublic == true;
+      allow create: if isValidId(postId)
+        && isVerifiedUser()
+        && isValidCommunityPost(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(postId)
+        && isVerifiedUser()
+        && existing().authorUid == request.auth.uid
+        && isValidCommunityPost(incoming())
+        && incoming().authorUid == existing().authorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['topic', 'title', 'body', 'updatedAt']);
+      allow delete: if isValidId(postId) && isVerifiedUser() && existing().authorUid == request.auth.uid;
+
+      match /replies/{replyId} {
+        allow get: if isValidId(postId) && isValidId(replyId) && isVerifiedUser()
+          && exists(/databases/$(database)/documents/communityPosts/$(postId));
+        allow list: if isValidId(postId) && isVerifiedUser() && resource.data.postId == postId;
+        allow create: if isValidId(postId) && isValidId(replyId)
+          && isVerifiedUser()
+          && exists(/databases/$(database)/documents/communityPosts/$(postId))
+          && isValidCommunityReply(incoming(), postId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(postId) && isValidId(replyId) && isVerifiedUser() && existing().authorUid == request.auth.uid;
+      }
+
+      match /likes/{likeUserId} {
+        allow get: if isValidId(postId) && isValidId(likeUserId) && isVerifiedUser();
+        allow list: if isValidId(postId) && isVerifiedUser() && resource.data.postId == postId;
+        allow create: if isValidId(postId) && isValidId(likeUserId)
+          && isVerifiedUser()
+          && exists(/databases/$(database)/documents/communityPosts/$(postId))
+          && isValidCommunityLike(incoming(), postId, likeUserId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(postId) && isValidId(likeUserId) && isVerifiedUser() && existing().userId == request.auth.uid;
+      }
+    }
+  }
+}

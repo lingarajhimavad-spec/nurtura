@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-sage-50: #F2F7F4;
+  --color-sage-100: #E2EFE8;
+  --color-sage-200: #C5DFD1;
+  --color-sage-300: #9AC3AF;
+  --color-sage-400: #6EA18A;
+  --color-sage-500: #4A826E;
+  --color-sage-600: #3A6B5A;
+  --color-sage-700: #2E5749;
+  --color-sage-800: #24453A;
+  --color-sage-900: #1B342C;
+  --color-sage-950: #10211C;
+
+  --color-blush-50: #FDF4F5;
+  --color-blush-100: #FCE8EB;
+  --color-blush-200: #F7CFD5;
+  --color-blush-300: #EDAEB8;
+  --color-blush-500: #D46F81;
+  --color-blush-600: #B84D61;
+  --color-blush-700: #99394C;
+  --color-blush-900: #4F1D27;
+  --color-blush-950: #2F1117;
+}
+
+@layer base {
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-mono-tabular {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  button, a, input, select, textarea {
+    &:focus-visible {
+      outline: 2px solid #2E5749;
+      outline-offset: 2px;
+    }
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

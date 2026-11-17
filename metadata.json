@@ -1,0 +1,6 @@
+{
+  "name": "Baby Memory",
+  "description": "Maternal and infant health companion for tracking pregnancy milestones, daily nutrition and medication, growth charts, medical records, cloud photo memories, nearby clinicians, and real-time care messaging.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
